@@ -4,6 +4,7 @@ import { Session } from '@supabase/supabase-js'
 import { supabase } from './src/lib/supabase'
 import LoginScreen from './src/screens/shared/LoginScreen'
 import BookingScreen from './src/screens/client/BookingScreen'
+import AppointmentsScreen from './src/screens/client/AppointmentsScreen'
 
 type Screen = 'home' | 'booking' | 'appointments' | 'profile'
 
@@ -25,6 +26,19 @@ function HomeScreen({ session }: { session: Session }) {
     </View>
   )
 
+  if (screen === 'appointments') return (
+  <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
+    <View style={s.topBar}>
+      <TouchableOpacity onPress={() => setScreen('home')}>
+        <Text style={s.topBarBack}>← Retour</Text>
+      </TouchableOpacity>
+      <Text style={s.topBarTitle}>Mes RDV</Text>
+      <View style={{ width: 60 }} />
+    </View>
+    <AppointmentsScreen />
+  </View>
+)
+
   return (
     <View style={s.container}>
       <Text style={s.logo}>Jampiero</Text>
@@ -38,7 +52,7 @@ function HomeScreen({ session }: { session: Session }) {
           <Text style={s.menuIcon}>✂</Text>
           <Text style={s.menuText}>Réserver</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.menuItem}>
+        <TouchableOpacity style={s.menuItem} onPress={() => setScreen('appointments')}>
           <Text style={s.menuIcon}>📅</Text>
           <Text style={s.menuText}>Mes RDV</Text>
         </TouchableOpacity>
