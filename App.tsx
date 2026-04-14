@@ -6,6 +6,7 @@ import LoginScreen from './src/screens/shared/LoginScreen'
 import BookingScreen from './src/screens/client/BookingScreen'
 import AppointmentsScreen from './src/screens/client/AppointmentsScreen'
 import ProfileScreen from './src/screens/client/ProfileScreen'
+import DashboardScreen from './src/screens/barber/DashboardScreen'
 
 type Screen = 'home' | 'booking' | 'appointments' | 'profile'
 
@@ -85,15 +86,30 @@ if (screen === 'profile') return (
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
+  const [profile, setProfile] = useState<{ id: string; role: string } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session)
+      if (data.session) await fetchProfile(data.session.user.id)
       setLoading(false)
     })
-    supabase.auth.onAuthStateChange((_e, s) => setSession(s))
+    supabase.auth.onAuthStateChange(async (_e, s) => {
+      setSession(s)
+      if (s) await fetchProfile(s.user.id)
+      else setProfile(null)
+    })
   }, [])
+
+  async function fetchProfile(userId: string) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, role')
+      .eq('id', userId)
+      .single()
+    setProfile(data)
+  }
 
   if (loading) return (
     <View style={s.container}>
@@ -101,9 +117,22 @@ export default function App() {
     </View>
   )
 
-  return session ? <HomeScreen session={session} /> : <LoginScreen />
-}
+  if (!session) return <LoginScreen />
 
+  if (profile?.role === 'barber') return (
+    <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
+      <View style={s.topBar}>
+        <Text style={s.topBarTitle}>Dashboard</Text>
+        <TouchableOpacity onPress={() => supabase.auth.signOut()}>
+          <Text style={s.topBarBack}>Déco</Text>
+        </TouchableOpacity>
+      </View>
+      <DashboardScreen barberId={profile.id} />
+    </View>
+  )
+
+  return <HomeScreen session={session} />
+}
 const s = StyleSheet.create({
   container:   { flex:1, backgroundColor:'#1a1a1a', alignItems:'center', justifyContent:'center', padding:32 },
   logo:        { color:'#c9a96e', fontSize:32, fontStyle:'italic', letterSpacing:2 },
