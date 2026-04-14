@@ -7,6 +7,7 @@ import BookingScreen from './src/screens/client/BookingScreen'
 import AppointmentsScreen from './src/screens/client/AppointmentsScreen'
 import ProfileScreen from './src/screens/client/ProfileScreen'
 import DashboardScreen from './src/screens/barber/DashboardScreen'
+import AgendaScreen from './src/screens/barber/AgendaScreen'
 
 type Screen = 'home' | 'booking' | 'appointments' | 'profile'
 
@@ -29,30 +30,30 @@ function HomeScreen({ session }: { session: Session }) {
   )
 
   if (screen === 'appointments') return (
-  <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
-    <View style={s.topBar}>
-      <TouchableOpacity onPress={() => setScreen('home')}>
-        <Text style={s.topBarBack}>← Retour</Text>
-      </TouchableOpacity>
-      <Text style={s.topBarTitle}>Mes RDV</Text>
-      <View style={{ width: 60 }} />
+    <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
+      <View style={s.topBar}>
+        <TouchableOpacity onPress={() => setScreen('home')}>
+          <Text style={s.topBarBack}>← Retour</Text>
+        </TouchableOpacity>
+        <Text style={s.topBarTitle}>Mes RDV</Text>
+        <View style={{ width: 60 }} />
+      </View>
+      <AppointmentsScreen />
     </View>
-    <AppointmentsScreen />
-  </View>
-)
+  )
 
-if (screen === 'profile') return (
-  <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
-    <View style={s.topBar}>
-      <TouchableOpacity onPress={() => setScreen('home')}>
-        <Text style={s.topBarBack}>← Retour</Text>
-      </TouchableOpacity>
-      <Text style={s.topBarTitle}>Mon Profil</Text>
-      <View style={{ width: 60 }} />
+  if (screen === 'profile') return (
+    <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
+      <View style={s.topBar}>
+        <TouchableOpacity onPress={() => setScreen('home')}>
+          <Text style={s.topBarBack}>← Retour</Text>
+        </TouchableOpacity>
+        <Text style={s.topBarTitle}>Mon Profil</Text>
+        <View style={{ width: 60 }} />
+      </View>
+      <ProfileScreen />
     </View>
-    <ProfileScreen />
-  </View>
-)
+  )
 
   return (
     <View style={s.container}>
@@ -61,7 +62,6 @@ if (screen === 'profile') return (
       <View style={s.divider} />
       <Text style={s.welcome}>Bienvenue 👋</Text>
       <Text style={s.email}>{session.user.email}</Text>
-
       <View style={s.menu}>
         <TouchableOpacity style={s.menuItem} onPress={() => setScreen('booking')}>
           <Text style={s.menuIcon}>✂</Text>
@@ -76,10 +76,36 @@ if (screen === 'profile') return (
           <Text style={s.menuText}>Profil</Text>
         </TouchableOpacity>
       </View>
-
       <TouchableOpacity style={s.signOut} onPress={signOut}>
         <Text style={s.signOutText}>Se déconnecter</Text>
       </TouchableOpacity>
+    </View>
+  )
+}
+
+function BarberApp({ barberId, onSignOut }: { barberId: string; onSignOut: () => void }) {
+  const [tab, setTab] = useState<'dashboard' | 'agenda'>('dashboard')
+
+  return (
+    <View style={{ flex:1, backgroundColor:'#1a1a1a' }}>
+      <View style={s.topBar}>
+        <Text style={s.topBarTitle}>{tab === 'dashboard' ? 'Dashboard' : 'Agenda'}</Text>
+        <TouchableOpacity onPress={onSignOut}>
+          <Text style={s.topBarBack}>Déco</Text>
+        </TouchableOpacity>
+      </View>
+      {tab === 'dashboard'
+        ? <DashboardScreen barberId={barberId} />
+        : <AgendaScreen barberId={barberId} />
+      }
+      <View style={s.bottomTabs}>
+        <TouchableOpacity style={s.bottomTab} onPress={() => setTab('dashboard')}>
+          <Text style={[s.bottomTabText, tab === 'dashboard' && s.bottomTabActive]}>📅 Dashboard</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.bottomTab} onPress={() => setTab('agenda')}>
+          <Text style={[s.bottomTabText, tab === 'agenda' && s.bottomTabActive]}>🗓 Agenda</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   )
 }
@@ -120,33 +146,33 @@ export default function App() {
   if (!session) return <LoginScreen />
 
   if (profile?.role === 'barber') return (
-    <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
-      <View style={s.topBar}>
-        <Text style={s.topBarTitle}>Dashboard</Text>
-        <TouchableOpacity onPress={() => supabase.auth.signOut()}>
-          <Text style={s.topBarBack}>Déco</Text>
-        </TouchableOpacity>
-      </View>
-      <DashboardScreen barberId={profile.id} />
-    </View>
+    <BarberApp
+      barberId={profile.id}
+      onSignOut={() => supabase.auth.signOut()}
+    />
   )
 
   return <HomeScreen session={session} />
 }
+
 const s = StyleSheet.create({
-  container:   { flex:1, backgroundColor:'#1a1a1a', alignItems:'center', justifyContent:'center', padding:32 },
-  logo:        { color:'#c9a96e', fontSize:32, fontStyle:'italic', letterSpacing:2 },
-  subtitle:    { color:'#888', fontSize:14, letterSpacing:4 },
-  divider:     { width:40, height:1, backgroundColor:'#c9a96e', marginVertical:24 },
-  welcome:     { color:'#fff', fontSize:20, marginBottom:6 },
-  email:       { color:'#555', fontSize:13, marginBottom:40 },
-  menu:        { flexDirection:'row', gap:16, marginBottom:48 },
-  menuItem:    { alignItems:'center', backgroundColor:'#222', borderWidth:1, borderColor:'#333', padding:20, borderRadius:8, width:90 },
-  menuIcon:    { fontSize:24, marginBottom:8 },
-  menuText:    { color:'#c9a96e', fontSize:12, letterSpacing:1 },
-  signOut:     { borderWidth:1, borderColor:'#333', paddingVertical:10, paddingHorizontal:24, borderRadius:4 },
-  signOutText: { color:'#555', fontSize:13 },
-  topBar:      { flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:16, borderBottomWidth:1, borderBottomColor:'#222' },
-  topBarBack:  { color:'#c9a96e', fontSize:14 },
-  topBarTitle: { color:'#fff', fontSize:15, letterSpacing:2 },
+  container:       { flex:1, backgroundColor:'#1a1a1a', alignItems:'center', justifyContent:'center', padding:32 },
+  logo:            { color:'#c9a96e', fontSize:32, fontStyle:'italic', letterSpacing:2 },
+  subtitle:        { color:'#888', fontSize:14, letterSpacing:4 },
+  divider:         { width:40, height:1, backgroundColor:'#c9a96e', marginVertical:24 },
+  welcome:         { color:'#fff', fontSize:20, marginBottom:6 },
+  email:           { color:'#555', fontSize:13, marginBottom:40 },
+  menu:            { flexDirection:'row', gap:16, marginBottom:48 },
+  menuItem:        { alignItems:'center', backgroundColor:'#222', borderWidth:1, borderColor:'#333', padding:20, borderRadius:8, width:90 },
+  menuIcon:        { fontSize:24, marginBottom:8 },
+  menuText:        { color:'#c9a96e', fontSize:12, letterSpacing:1 },
+  signOut:         { borderWidth:1, borderColor:'#333', paddingVertical:10, paddingHorizontal:24, borderRadius:4 },
+  signOutText:     { color:'#555', fontSize:13 },
+  topBar:          { flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:16, borderBottomWidth:1, borderBottomColor:'#222' },
+  topBarBack:      { color:'#c9a96e', fontSize:14 },
+  topBarTitle:     { color:'#fff', fontSize:15, letterSpacing:2 },
+  bottomTabs:      { flexDirection:'row', borderTopWidth:1, borderTopColor:'#222' },
+  bottomTab:       { flex:1, padding:16, alignItems:'center' },
+  bottomTabText:   { color:'#555', fontSize:13 },
+  bottomTabActive: { color:'#c9a96e' },
 })
