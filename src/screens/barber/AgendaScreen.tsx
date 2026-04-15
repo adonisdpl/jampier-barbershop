@@ -46,27 +46,46 @@ export default function AgendaScreen({ barberId }: { barberId: string }) {
 
   useEffect(() => { if (selDate) fetchSlots(selDate) }, [selDate, fetchSlots])
 
+ async function blockSlot(slotTime: string) {
+  console.log('blockSlot appelé', { barberId, date: selDate, slot_time: slotTime })
+  
+  const { error: delError } = await supabase.from('availability')
+    .delete()
+    .eq('barber_id', barberId)
+    .eq('date', selDate!)
+    .eq('slot_time', slotTime)
+  console.log('delete result:', delError)
+
+  const { error: insError } = await supabase.from('availability').insert({
+    barber_id:  barberId,
+    date:       selDate!,
+    slot_time:  slotTime,
+    is_blocked: true,
+  })
+  console.log('insert result:', insError)
+  if (insError) Alert.alert('Erreur insert', JSON.stringify(insError))
+}
+
+  async function unblockSlot(slotTime: string) {
+    const { error } = await supabase.from('availability')
+      .delete()
+      .eq('barber_id', barberId)
+      .eq('date', selDate!)
+      .eq('slot_time', slotTime)
+    if (error) Alert.alert('Erreur', error.message)
+  }
+
   async function toggleSlot(slot: SlotState) {
     if (slot.isBooked) {
       Alert.alert('Impossible', 'Ce créneau est déjà réservé par un client.')
       return
     }
     setSaving(slot.time)
+    const slotTime = slot.time + ':00'
     if (slot.isBlocked) {
-      // Débloquer
-      await supabase.from('availability')
-        .delete()
-        .eq('barber_id', barberId)
-        .eq('date', selDate)
-        .eq('slot_time', slot.time + ':00')
+      await unblockSlot(slotTime)
     } else {
-      // Bloquer
-      await supabase.from('availability').upsert({
-        barber_id:  barberId,
-        date:       selDate,
-        slot_time:  slot.time + ':00',
-        is_blocked: true,
-      }, { onConflict: 'barber_id,date,slot_time' })
+      await blockSlot(slotTime)
     }
     setSaving(null)
     if (selDate) fetchSlots(selDate)
@@ -79,13 +98,9 @@ export default function AgendaScreen({ barberId }: { barberId: string }) {
       { text: 'Confirmer', onPress: async () => {
         setLoading(true)
         const freeSlots = slots.filter(s => !s.isBooked && !s.isBlocked)
-        await supabase.from('availability').upsert(
-          freeSlots.map(s => ({
-            barber_id: barberId, date: selDate,
-            slot_time: s.time + ':00', is_blocked: true,
-          })),
-          { onConflict: 'barber_id,date,slot_time' }
-        )
+        for (const slot of freeSlots) {
+          await blockSlot(slot.time + ':00')
+        }
         fetchSlots(selDate)
       }},
     ])
@@ -131,7 +146,6 @@ export default function AgendaScreen({ barberId }: { barberId: string }) {
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding:16, paddingBottom:60 }}>
 
-      {/* Navigation mois */}
       <View style={s.calNav}>
         <TouchableOpacity onPress={prevMonth} style={s.calNavBtn}>
           <Text style={s.calNavArrow}>←</Text>
@@ -142,14 +156,12 @@ export default function AgendaScreen({ barberId }: { barberId: string }) {
         </TouchableOpacity>
       </View>
 
-      {/* Légende */}
       <View style={s.legend}>
         <LegendItem color="#1D9E75" label="Libre" />
         <LegendItem color="#e05252" label="Bloqué" />
         <LegendItem color="#BA7517" label="Réservé" />
       </View>
 
-      {/* Grille calendrier */}
       <View style={s.calRow}>
         {DAYS.map(d => <Text key={d} style={s.calDayName}>{d}</Text>)}
       </View>
@@ -162,7 +174,6 @@ export default function AgendaScreen({ barberId }: { barberId: string }) {
           const isSunday = d.getDay() === 0
           const isSelected = ds === selDate
           const disabled = isPast || isSunday
-
           return (
             <TouchableOpacity
               key={ds}
@@ -178,19 +189,16 @@ export default function AgendaScreen({ barberId }: { barberId: string }) {
         })}
       </View>
 
-      {/* Gestion des créneaux */}
       {selDate && (
         <View style={{ marginTop:24 }}>
           <Text style={s.sectionTitle}>{selDateLabel}</Text>
 
-          {/* Stats jour */}
           <View style={s.dayStats}>
-            <StatPill label={`${freeCount} libre${freeCount>1?'s':''}`}   color="#1D9E75" />
+            <StatPill label={`${freeCount} libre${freeCount>1?'s':''}`} color="#1D9E75" />
             <StatPill label={`${bookedCount} réservé${bookedCount>1?'s':''}`} color="#BA7517" />
             <StatPill label={`${blockedCount} bloqué${blockedCount>1?'s':''}`} color="#e05252" />
           </View>
 
-          {/* Actions rapides */}
           <View style={s.quickActions}>
             <TouchableOpacity style={s.btnBlock} onPress={blockFullDay}>
               <Text style={s.btnBlockText}>Bloquer la journée</Text>
@@ -200,7 +208,6 @@ export default function AgendaScreen({ barberId }: { barberId: string }) {
             </TouchableOpacity>
           </View>
 
-          {/* Créneaux */}
           {loading ? (
             <ActivityIndicator color="#c9a96e" style={{ marginTop:16 }} />
           ) : (
@@ -260,40 +267,40 @@ function StatPill({ label, color }: { label: string; color: string }) {
 }
 
 const s = StyleSheet.create({
-  container:          { flex:1, backgroundColor:'#1a1a1a' },
-  calNav:             { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:12 },
-  calNavBtn:          { padding:8 },
-  calNavArrow:        { color:'#c9a96e', fontSize:20 },
-  calMonth:           { color:'#fff', fontSize:15, letterSpacing:1 },
-  legend:             { flexDirection:'row', gap:16, marginBottom:12 },
-  legendItem:         { flexDirection:'row', alignItems:'center', gap:6 },
-  legendDot:          { width:8, height:8, borderRadius:4 },
-  legendLabel:        { color:'#666', fontSize:12 },
-  calRow:             { flexDirection:'row', marginBottom:4 },
-  calDayName:         { flex:1, textAlign:'center', color:'#555', fontSize:11, letterSpacing:1 },
-  calGrid:            { flexDirection:'row', flexWrap:'wrap' },
-  calCell:            { width:'14.28%', aspectRatio:1, alignItems:'center', justifyContent:'center' },
-  calCellSelected:    { backgroundColor:'#222', borderWidth:1, borderColor:'#c9a96e', borderRadius:4 },
-  calCellDisabled:    { opacity:0.2 },
-  calCellText:        { color:'#ccc', fontSize:13 },
-  calCellTextSelected:{ color:'#c9a96e' },
-  calCellTextDisabled:{ color:'#444' },
-  sectionTitle:       { color:'#c9a96e', fontSize:14, letterSpacing:2, textTransform:'uppercase', marginBottom:12 },
-  dayStats:           { flexDirection:'row', gap:8, marginBottom:12 },
-  statPill:           { paddingVertical:4, paddingHorizontal:10, borderRadius:4 },
-  statPillText:       { fontSize:12, letterSpacing:1 },
-  quickActions:       { flexDirection:'row', gap:8, marginBottom:16 },
-  btnBlock:           { flex:1, backgroundColor:'#e05252', padding:10, alignItems:'center', borderRadius:4 },
-  btnBlockText:       { color:'#fff', fontSize:12, letterSpacing:1 },
-  btnUnblock:         { flex:1, borderWidth:1, borderColor:'#1D9E75', padding:10, alignItems:'center', borderRadius:4 },
-  btnUnblockText:     { color:'#1D9E75', fontSize:12, letterSpacing:1 },
-  slotsGrid:          { flexDirection:'row', flexWrap:'wrap', gap:8 },
-  slot:               { width:'30%', backgroundColor:'#1D9E75'+'22', borderWidth:1, borderColor:'#1D9E75', borderRadius:6, padding:10, alignItems:'center' },
-  slotBooked:         { backgroundColor:'#BA7517'+'22', borderColor:'#BA7517' },
-  slotBlocked:        { backgroundColor:'#e05252'+'22', borderColor:'#e05252' },
-  slotTime:           { color:'#1D9E75', fontSize:15, fontWeight:'500' },
-  slotTimeBooked:     { color:'#BA7517' },
-  slotTimeBlocked:    { color:'#e05252' },
-  slotStatus:         { color:'#666', fontSize:10, letterSpacing:1, marginTop:2 },
-  hint:               { color:'#333', fontSize:11, textAlign:'center', marginTop:16, letterSpacing:1 },
+  container:           { flex:1, backgroundColor:'#1a1a1a' },
+  calNav:              { flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:12 },
+  calNavBtn:           { padding:8 },
+  calNavArrow:         { color:'#c9a96e', fontSize:20 },
+  calMonth:            { color:'#fff', fontSize:15, letterSpacing:1 },
+  legend:              { flexDirection:'row', gap:16, marginBottom:12 },
+  legendItem:          { flexDirection:'row', alignItems:'center', gap:6 },
+  legendDot:           { width:8, height:8, borderRadius:4 },
+  legendLabel:         { color:'#666', fontSize:12 },
+  calRow:              { flexDirection:'row', marginBottom:4 },
+  calDayName:          { flex:1, textAlign:'center', color:'#555', fontSize:11, letterSpacing:1 },
+  calGrid:             { flexDirection:'row', flexWrap:'wrap' },
+  calCell:             { width:'14.28%', aspectRatio:1, alignItems:'center', justifyContent:'center' },
+  calCellSelected:     { backgroundColor:'#222', borderWidth:1, borderColor:'#c9a96e', borderRadius:4 },
+  calCellDisabled:     { opacity:0.2 },
+  calCellText:         { color:'#ccc', fontSize:13 },
+  calCellTextSelected: { color:'#c9a96e' },
+  calCellTextDisabled: { color:'#444' },
+  sectionTitle:        { color:'#c9a96e', fontSize:14, letterSpacing:2, textTransform:'uppercase', marginBottom:12 },
+  dayStats:            { flexDirection:'row', gap:8, marginBottom:12 },
+  statPill:            { paddingVertical:4, paddingHorizontal:10, borderRadius:4 },
+  statPillText:        { fontSize:12, letterSpacing:1 },
+  quickActions:        { flexDirection:'row', gap:8, marginBottom:16 },
+  btnBlock:            { flex:1, backgroundColor:'#e05252', padding:10, alignItems:'center', borderRadius:4 },
+  btnBlockText:        { color:'#fff', fontSize:12, letterSpacing:1 },
+  btnUnblock:          { flex:1, borderWidth:1, borderColor:'#1D9E75', padding:10, alignItems:'center', borderRadius:4 },
+  btnUnblockText:      { color:'#1D9E75', fontSize:12, letterSpacing:1 },
+  slotsGrid:           { flexDirection:'row', flexWrap:'wrap', gap:8 },
+  slot:                { width:'30%', backgroundColor:'#1D9E75'+'22', borderWidth:1, borderColor:'#1D9E75', borderRadius:6, padding:10, alignItems:'center' },
+  slotBooked:          { backgroundColor:'#BA7517'+'22', borderColor:'#BA7517' },
+  slotBlocked:         { backgroundColor:'#e05252'+'22', borderColor:'#e05252' },
+  slotTime:            { color:'#1D9E75', fontSize:15, fontWeight:'500' },
+  slotTimeBooked:      { color:'#BA7517' },
+  slotTimeBlocked:     { color:'#e05252' },
+  slotStatus:          { color:'#666', fontSize:10, letterSpacing:1, marginTop:2 },
+  hint:                { color:'#333', fontSize:11, textAlign:'center', marginTop:16, letterSpacing:1 },
 })

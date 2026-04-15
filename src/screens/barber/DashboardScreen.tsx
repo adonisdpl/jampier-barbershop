@@ -11,7 +11,7 @@ interface Booking {
   slot_time: string
   status: 'pending' | 'confirmed' | 'cancelled' | 'done'
   note: string | null
-  client: { full_name: string; phone: string | null }
+  client: { full_name: string; phone: string | null } | null
   service: { name: string; price_chf: number; duration_min: number }
 }
 
@@ -53,8 +53,8 @@ function BookingCard({ booking, onUpdate }: { booking: Booking; onUpdate: () => 
       <View style={s.cardHeader}>
         <View>
           <Text style={s.slotTime}>{booking.slot_time.slice(0, 5)}</Text>
-          <Text style={s.clientName}>{booking.client.full_name}</Text>
-          {booking.client.phone && (
+          <Text style={s.clientName}>{booking.client?.full_name ?? 'Client inconnu'}</Text>
+          {booking.client?.phone && (
             <Text style={s.clientPhone}>{booking.client.phone}</Text>
           )}
         </View>
@@ -109,7 +109,7 @@ export default function DashboardScreen({ barberId }: { barberId: string }) {
   const [loading, setLoading]   = useState(true)
   const [selDate, setSelDate]   = useState(new Date())
 
-  const dateStr = (d: Date) => d.toISOString().split('T')[0]
+  const dateStr   = (d: Date) => d.toISOString().split('T')[0]
   const dateLabel = (d: Date) => d.toLocaleDateString('fr-CH', {
     weekday: 'long', day: 'numeric', month: 'long'
   })
@@ -128,13 +128,16 @@ export default function DashboardScreen({ barberId }: { barberId: string }) {
       .neq('status', 'cancelled')
       .order('slot_time')
 
-    if (!error) setBookings((data as any) ?? [])
+    if (error) {
+      console.error('fetchBookings error:', error)
+    } else {
+      setBookings((data as any) ?? [])
+    }
     setLoading(false)
   }, [barberId, selDate])
 
   useEffect(() => { fetchBookings() }, [fetchBookings])
 
-  // Realtime : nouvelles réservations
   useEffect(() => {
     const channel = supabase
       .channel(`dashboard:${barberId}`)
@@ -149,13 +152,11 @@ export default function DashboardScreen({ barberId }: { barberId: string }) {
   function prevDay() { const d = new Date(selDate); d.setDate(d.getDate() - 1); setSelDate(d) }
   function nextDay() { const d = new Date(selDate); d.setDate(d.getDate() + 1); setSelDate(d) }
 
-  const total = bookings.reduce((sum, b) => sum + b.service.price_chf, 0)
+  const total     = bookings.reduce((sum, b) => sum + b.service.price_chf, 0)
   const confirmed = bookings.filter(b => b.status === 'confirmed' || b.status === 'done').length
 
   return (
     <View style={s.container}>
-
-      {/* Navigation jour */}
       <View style={s.dayNav}>
         <TouchableOpacity onPress={prevDay} style={s.dayNavBtn}>
           <Text style={s.dayNavArrow}>←</Text>
@@ -171,7 +172,6 @@ export default function DashboardScreen({ barberId }: { barberId: string }) {
         </TouchableOpacity>
       </View>
 
-      {/* Stats du jour */}
       <View style={s.stats}>
         <View style={s.statItem}>
           <Text style={s.statValue}>{bookings.length}</Text>
@@ -189,7 +189,6 @@ export default function DashboardScreen({ barberId }: { barberId: string }) {
         </View>
       </View>
 
-      {/* Liste RDV */}
       {loading ? (
         <ActivityIndicator color="#c9a96e" style={{ marginTop: 40 }} />
       ) : bookings.length === 0 ? (
@@ -209,36 +208,36 @@ export default function DashboardScreen({ barberId }: { barberId: string }) {
 }
 
 const s = StyleSheet.create({
-  container:       { flex:1, backgroundColor:'#1a1a1a' },
-  dayNav:          { flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:16, borderBottomWidth:1, borderBottomColor:'#222' },
-  dayNavBtn:       { padding:8 },
-  dayNavArrow:     { color:'#c9a96e', fontSize:20 },
-  dayLabel:        { color:'#fff', fontSize:15, textAlign:'center' },
-  todayBadge:      { color:'#c9a96e', fontSize:11, letterSpacing:1, textAlign:'center', marginTop:2 },
-  stats:           { flexDirection:'row', backgroundColor:'#222', margin:16, borderRadius:8, padding:16, borderWidth:1, borderColor:'#333' },
-  statItem:        { flex:1, alignItems:'center' },
-  statValue:       { color:'#c9a96e', fontSize:20, fontWeight:'500', marginBottom:4 },
-  statLabel:       { color:'#555', fontSize:11, letterSpacing:1 },
-  statDivider:     { width:1, backgroundColor:'#333', marginHorizontal:8 },
-  card:            { backgroundColor:'#222', borderWidth:1, borderColor:'#333', borderRadius:8, padding:16, marginBottom:12 },
-  cardHeader:      { flexDirection:'row', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 },
-  slotTime:        { color:'#c9a96e', fontSize:20, fontWeight:'500', marginBottom:2 },
-  clientName:      { color:'#fff', fontSize:15 },
-  clientPhone:     { color:'#555', fontSize:12, marginTop:2 },
-  badge:           { paddingVertical:4, paddingHorizontal:10, borderRadius:4 },
-  badgeText:       { fontSize:11, letterSpacing:1 },
-  serviceRow:      { flexDirection:'row', justifyContent:'space-between', marginBottom:8 },
-  serviceName:     { color:'#aaa', fontSize:13 },
-  serviceDetail:   { color:'#555', fontSize:13 },
-  note:            { color:'#666', fontSize:12, fontStyle:'italic', marginBottom:8 },
-  actions:         { flexDirection:'row', gap:8, marginTop:8 },
-  btnConfirm:      { flex:1, backgroundColor:'#1D9E75', padding:10, alignItems:'center', borderRadius:4 },
-  btnConfirmText:  { color:'#fff', fontSize:12, letterSpacing:1 },
-  btnDone:         { flex:1, backgroundColor:'#333', padding:10, alignItems:'center', borderRadius:4 },
-  btnDoneText:     { color:'#c9a96e', fontSize:12, letterSpacing:1 },
-  btnCancel:       { flex:1, borderWidth:1, borderColor:'#e05252', padding:10, alignItems:'center', borderRadius:4 },
-  btnCancelText:   { color:'#e05252', fontSize:12, letterSpacing:1 },
-  empty:           { flex:1, alignItems:'center', justifyContent:'center', gap:12 },
-  emptyIcon:       { fontSize:40 },
-  emptyText:       { color:'#555', fontSize:14, letterSpacing:1 },
+  container:      { flex:1, backgroundColor:'#1a1a1a' },
+  dayNav:         { flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:16, borderBottomWidth:1, borderBottomColor:'#222' },
+  dayNavBtn:      { padding:8 },
+  dayNavArrow:    { color:'#c9a96e', fontSize:20 },
+  dayLabel:       { color:'#fff', fontSize:15, textAlign:'center' },
+  todayBadge:     { color:'#c9a96e', fontSize:11, letterSpacing:1, textAlign:'center', marginTop:2 },
+  stats:          { flexDirection:'row', backgroundColor:'#222', margin:16, borderRadius:8, padding:16, borderWidth:1, borderColor:'#333' },
+  statItem:       { flex:1, alignItems:'center' },
+  statValue:      { color:'#c9a96e', fontSize:20, fontWeight:'500', marginBottom:4 },
+  statLabel:      { color:'#555', fontSize:11, letterSpacing:1 },
+  statDivider:    { width:1, backgroundColor:'#333', marginHorizontal:8 },
+  card:           { backgroundColor:'#222', borderWidth:1, borderColor:'#333', borderRadius:8, padding:16, marginBottom:12 },
+  cardHeader:     { flexDirection:'row', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 },
+  slotTime:       { color:'#c9a96e', fontSize:20, fontWeight:'500', marginBottom:2 },
+  clientName:     { color:'#fff', fontSize:15 },
+  clientPhone:    { color:'#555', fontSize:12, marginTop:2 },
+  badge:          { paddingVertical:4, paddingHorizontal:10, borderRadius:4 },
+  badgeText:      { fontSize:11, letterSpacing:1 },
+  serviceRow:     { flexDirection:'row', justifyContent:'space-between', marginBottom:8 },
+  serviceName:    { color:'#aaa', fontSize:13 },
+  serviceDetail:  { color:'#555', fontSize:13 },
+  note:           { color:'#666', fontSize:12, fontStyle:'italic', marginBottom:8 },
+  actions:        { flexDirection:'row', gap:8, marginTop:8 },
+  btnConfirm:     { flex:1, backgroundColor:'#1D9E75', padding:10, alignItems:'center', borderRadius:4 },
+  btnConfirmText: { color:'#fff', fontSize:12, letterSpacing:1 },
+  btnDone:        { flex:1, backgroundColor:'#333', padding:10, alignItems:'center', borderRadius:4 },
+  btnDoneText:    { color:'#c9a96e', fontSize:12, letterSpacing:1 },
+  btnCancel:      { flex:1, borderWidth:1, borderColor:'#e05252', padding:10, alignItems:'center', borderRadius:4 },
+  btnCancelText:  { color:'#e05252', fontSize:12, letterSpacing:1 },
+  empty:          { flex:1, alignItems:'center', justifyContent:'center', gap:12 },
+  emptyIcon:      { fontSize:40 },
+  emptyText:      { color:'#555', fontSize:14, letterSpacing:1 },
 })

@@ -83,27 +83,35 @@ function HomeScreen({ session }: { session: Session }) {
   )
 }
 
+// Remplacez la fonction BarberApp dans App.tsx
+
 function BarberApp({ barberId, onSignOut }: { barberId: string; onSignOut: () => void }) {
-  const [tab, setTab] = useState<'dashboard' | 'agenda'>('dashboard')
+  const [tab, setTab] = useState<'dashboard' | 'agenda' | 'profile'>('dashboard')
 
   return (
     <View style={{ flex:1, backgroundColor:'#1a1a1a' }}>
+      {/* Header */}
       <View style={s.topBar}>
-        <Text style={s.topBarTitle}>{tab === 'dashboard' ? 'Dashboard' : 'Agenda'}</Text>
-        <TouchableOpacity onPress={onSignOut}>
-          <Text style={s.topBarBack}>Déco</Text>
-        </TouchableOpacity>
+        <Text style={s.topBarTitle}>
+          {tab === 'dashboard' ? 'Dashboard' : tab === 'agenda' ? 'Agenda' : 'Mon Profil'}
+        </Text>
       </View>
-      {tab === 'dashboard'
-        ? <DashboardScreen barberId={barberId} />
-        : <AgendaScreen barberId={barberId} />
-      }
+
+      {/* Contenu */}
+      {tab === 'dashboard' && <DashboardScreen barberId={barberId} />}
+      {tab === 'agenda'    && <AgendaScreen    barberId={barberId} />}
+      {tab === 'profile'   && <ProfileScreen />}
+
+      {/* Barre de navigation */}
       <View style={s.bottomTabs}>
         <TouchableOpacity style={s.bottomTab} onPress={() => setTab('dashboard')}>
           <Text style={[s.bottomTabText, tab === 'dashboard' && s.bottomTabActive]}>📅 Dashboard</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.bottomTab} onPress={() => setTab('agenda')}>
           <Text style={[s.bottomTabText, tab === 'agenda' && s.bottomTabActive]}>🗓 Agenda</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.bottomTab} onPress={() => setTab('profile')}>
+          <Text style={[s.bottomTabText, tab === 'profile' && s.bottomTabActive]}>👤 Profil</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -128,14 +136,27 @@ export default function App() {
     })
   }, [])
 
-  async function fetchProfile(userId: string) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, role')
-      .eq('id', userId)
+async function fetchProfile(userId: string) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, role')
+    .eq('id', userId)
+    .single()
+
+  console.log('profile:', profile)
+
+  if (profile?.role === 'barber') {
+    const { data: barber } = await supabase
+      .from('barbers')
+      .select('id')
+      .eq('profile_id', userId)
       .single()
-    setProfile(data)
+    console.log('barber:', barber)
+    setProfile({ id: barber?.id ?? profile.id, role: 'barber' })
+  } else {
+    setProfile(profile)
   }
+}
 
   if (loading) return (
     <View style={s.container}>
