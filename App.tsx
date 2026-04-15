@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
 import { Session } from '@supabase/supabase-js'
 import { supabase } from './src/lib/supabase'
+import { colors, spacing, radius } from './src/theme'
 import LoginScreen from './src/screens/shared/LoginScreen'
 import BookingScreen from './src/screens/client/BookingScreen'
 import AppointmentsScreen from './src/screens/client/AppointmentsScreen'
@@ -14,10 +15,8 @@ type Screen = 'home' | 'booking' | 'appointments' | 'profile'
 function HomeScreen({ session }: { session: Session }) {
   const [screen, setScreen] = useState<Screen>('home')
 
-  async function signOut() { await supabase.auth.signOut() }
-
   if (screen === 'booking') return (
-    <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
+    <View style={{ flex:1, backgroundColor: colors.cream }}>
       <View style={s.topBar}>
         <TouchableOpacity onPress={() => setScreen('home')}>
           <Text style={s.topBarBack}>← Retour</Text>
@@ -30,7 +29,7 @@ function HomeScreen({ session }: { session: Session }) {
   )
 
   if (screen === 'appointments') return (
-    <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
+    <View style={{ flex:1, backgroundColor: colors.cream }}>
       <View style={s.topBar}>
         <TouchableOpacity onPress={() => setScreen('home')}>
           <Text style={s.topBarBack}>← Retour</Text>
@@ -43,7 +42,7 @@ function HomeScreen({ session }: { session: Session }) {
   )
 
   if (screen === 'profile') return (
-    <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
+    <View style={{ flex:1, backgroundColor: colors.cream }}>
       <View style={s.topBar}>
         <TouchableOpacity onPress={() => setScreen('home')}>
           <Text style={s.topBarBack}>← Retour</Text>
@@ -56,53 +55,75 @@ function HomeScreen({ session }: { session: Session }) {
   )
 
   return (
-    <View style={s.container}>
-      <Text style={s.logo}>Jampiero</Text>
-      <Text style={s.subtitle}>BarberoShop</Text>
-      <View style={s.divider} />
-      <Text style={s.welcome}>Bienvenue 👋</Text>
-      <Text style={s.email}>{session.user.email}</Text>
-      <View style={s.menu}>
-        <TouchableOpacity style={s.menuItem} onPress={() => setScreen('booking')}>
-          <Text style={s.menuIcon}>✂</Text>
-          <Text style={s.menuText}>Réserver</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.menuItem} onPress={() => setScreen('appointments')}>
-          <Text style={s.menuIcon}>📅</Text>
-          <Text style={s.menuText}>Mes RDV</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.menuItem} onPress={() => setScreen('profile')}>
-          <Text style={s.menuIcon}>👤</Text>
-          <Text style={s.menuText}>Profil</Text>
-        </TouchableOpacity>
+    <View style={{ flex:1, backgroundColor: colors.cream }}>
+      {/* Header rouge */}
+      <View style={s.header}>
+        <Text style={s.headerLogo}>Jampiero BarberoShop</Text>
+        <Text style={s.headerWelcome}>Bonjour 👋 {session.user.email?.split('@')[0]}</Text>
       </View>
-      <TouchableOpacity style={s.signOut} onPress={signOut}>
-        <Text style={s.signOutText}>Se déconnecter</Text>
-      </TouchableOpacity>
+
+      {/* Contenu */}
+      <View style={s.body}>
+        {/* Stats */}
+        <View style={s.statsRow}>
+          <View style={s.statCard}>
+            <Text style={s.statVal}>✂</Text>
+            <Text style={s.statLbl}>Barbershop</Text>
+          </View>
+          <View style={s.statCard}>
+            <Text style={s.statVal}>🇩🇴</Text>
+            <Text style={s.statLbl}>Dominicain</Text>
+          </View>
+          <View style={s.statCard}>
+            <Text style={s.statVal}>5★</Text>
+            <Text style={s.statLbl}>Note</Text>
+          </View>
+        </View>
+
+        {/* Menu */}
+        <View style={s.menuGrid}>
+          <TouchableOpacity style={[s.menuCard, s.menuCardAccent]} onPress={() => setScreen('booking')}>
+            <Text style={s.menuIcon}>✂</Text>
+            <Text style={[s.menuLabel, { color: colors.redDark }]}>Réserver</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.menuCard} onPress={() => setScreen('appointments')}>
+            <Text style={s.menuIcon}>📅</Text>
+            <Text style={s.menuLabel}>Mes RDV</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.menuCard} onPress={() => setScreen('profile')}>
+            <Text style={s.menuIcon}>👤</Text>
+            <Text style={s.menuLabel}>Profil</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.menuCard}>
+            <Text style={s.menuIcon}>📍</Text>
+            <Text style={s.menuLabel}>Adresse</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Adresse */}
+        <View style={s.addressCard}>
+          <Text style={s.addressTitle}>Nous trouver</Text>
+          <Text style={s.addressText}>12 Rue de Rive, 1204 Genève</Text>
+          <Text style={s.addressText}>Lun–Ven 9h–19h · Sam 9h–18h</Text>
+        </View>
+      </View>
     </View>
   )
 }
-
-// Remplacez la fonction BarberApp dans App.tsx
 
 function BarberApp({ barberId, onSignOut }: { barberId: string; onSignOut: () => void }) {
   const [tab, setTab] = useState<'dashboard' | 'agenda' | 'profile'>('dashboard')
 
   return (
-    <View style={{ flex:1, backgroundColor:'#1a1a1a' }}>
-      {/* Header */}
+    <View style={{ flex:1, backgroundColor: colors.cream }}>
       <View style={s.topBar}>
         <Text style={s.topBarTitle}>
           {tab === 'dashboard' ? 'Dashboard' : tab === 'agenda' ? 'Agenda' : 'Mon Profil'}
         </Text>
       </View>
-
-      {/* Contenu */}
       {tab === 'dashboard' && <DashboardScreen barberId={barberId} />}
       {tab === 'agenda'    && <AgendaScreen    barberId={barberId} />}
       {tab === 'profile'   && <ProfileScreen />}
-
-      {/* Barre de navigation */}
       <View style={s.bottomTabs}>
         <TouchableOpacity style={s.bottomTab} onPress={() => setTab('dashboard')}>
           <Text style={[s.bottomTabText, tab === 'dashboard' && s.bottomTabActive]}>📅 Dashboard</Text>
@@ -136,64 +157,53 @@ export default function App() {
     })
   }, [])
 
-async function fetchProfile(userId: string) {
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, role')
-    .eq('id', userId)
-    .single()
-
-  console.log('profile:', profile)
-
-  if (profile?.role === 'barber') {
-    const { data: barber } = await supabase
-      .from('barbers')
-      .select('id')
-      .eq('profile_id', userId)
-      .single()
-    console.log('barber:', barber)
-    setProfile({ id: barber?.id ?? profile.id, role: 'barber' })
-  } else {
-    setProfile(profile)
+  async function fetchProfile(userId: string) {
+    const { data: prof } = await supabase
+      .from('profiles').select('id, role').eq('id', userId).single()
+    if (prof?.role === 'barber') {
+      const { data: barber } = await supabase
+        .from('barbers').select('id').eq('profile_id', userId).single()
+      setProfile({ id: barber?.id ?? prof.id, role: 'barber' })
+    } else {
+      setProfile(prof)
+    }
   }
-}
 
   if (loading) return (
-    <View style={s.container}>
-      <ActivityIndicator color="#c9a96e" size="large" />
+    <View style={{ flex:1, backgroundColor: colors.cream, alignItems:'center', justifyContent:'center' }}>
+      <ActivityIndicator color={colors.red} size="large" />
     </View>
   )
 
   if (!session) return <LoginScreen />
-
   if (profile?.role === 'barber') return (
-    <BarberApp
-      barberId={profile.id}
-      onSignOut={() => supabase.auth.signOut()}
-    />
+    <BarberApp barberId={profile.id} onSignOut={() => supabase.auth.signOut()} />
   )
-
   return <HomeScreen session={session} />
 }
 
 const s = StyleSheet.create({
-  container:       { flex:1, backgroundColor:'#1a1a1a', alignItems:'center', justifyContent:'center', padding:32 },
-  logo:            { color:'#c9a96e', fontSize:32, fontStyle:'italic', letterSpacing:2 },
-  subtitle:        { color:'#888', fontSize:14, letterSpacing:4 },
-  divider:         { width:40, height:1, backgroundColor:'#c9a96e', marginVertical:24 },
-  welcome:         { color:'#fff', fontSize:20, marginBottom:6 },
-  email:           { color:'#555', fontSize:13, marginBottom:40 },
-  menu:            { flexDirection:'row', gap:16, marginBottom:48 },
-  menuItem:        { alignItems:'center', backgroundColor:'#222', borderWidth:1, borderColor:'#333', padding:20, borderRadius:8, width:90 },
-  menuIcon:        { fontSize:24, marginBottom:8 },
-  menuText:        { color:'#c9a96e', fontSize:12, letterSpacing:1 },
-  signOut:         { borderWidth:1, borderColor:'#333', paddingVertical:10, paddingHorizontal:24, borderRadius:4 },
-  signOutText:     { color:'#555', fontSize:13 },
-  topBar:          { flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:16, borderBottomWidth:1, borderBottomColor:'#222' },
-  topBarBack:      { color:'#c9a96e', fontSize:14 },
-  topBarTitle:     { color:'#fff', fontSize:15, letterSpacing:2 },
-  bottomTabs:      { flexDirection:'row', borderTopWidth:1, borderTopColor:'#222' },
-  bottomTab:       { flex:1, padding:16, alignItems:'center' },
-  bottomTabText:   { color:'#555', fontSize:13 },
-  bottomTabActive: { color:'#c9a96e' },
+  topBar:          { backgroundColor: colors.red, paddingHorizontal: spacing.md, paddingVertical: spacing.md, flexDirection:'row', alignItems:'center', justifyContent:'space-between' },
+  topBarTitle:     { color: colors.white, fontSize:17, fontStyle:'italic', letterSpacing:1 },
+  topBarBack:      { color: colors.white, fontSize:14, opacity:0.9 },
+  header:          { backgroundColor: colors.red, paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xl },
+  headerLogo:      { color: colors.white, fontSize:20, fontStyle:'italic', letterSpacing:1, marginBottom:4 },
+  headerWelcome:   { color: colors.white, fontSize:14, opacity:0.85 },
+  body:            { flex:1, padding: spacing.md },
+  statsRow:        { flexDirection:'row', gap:8, marginBottom: spacing.md },
+  statCard:        { flex:1, backgroundColor: colors.white, borderWidth:1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.sm, alignItems:'center' },
+  statVal:         { fontSize:20, marginBottom:4 },
+  statLbl:         { fontSize:9, color: colors.textMuted, letterSpacing:1, textTransform:'uppercase' },
+  menuGrid:        { flexDirection:'row', flexWrap:'wrap', gap:10, marginBottom: spacing.md },
+  menuCard:        { width:'47%', backgroundColor: colors.white, borderWidth:1.5, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md, alignItems:'center' },
+  menuCardAccent:  { borderColor: colors.red, backgroundColor: colors.redLight },
+  menuIcon:        { fontSize:24, marginBottom:6 },
+  menuLabel:       { fontSize:11, color: colors.text, letterSpacing:1, textTransform:'uppercase', fontWeight:'500' },
+  addressCard:     { backgroundColor: colors.white, borderWidth:1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md },
+  addressTitle:    { color: colors.red, fontSize:11, letterSpacing:2, textTransform:'uppercase', fontWeight:'600', marginBottom:6 },
+  addressText:     { color: colors.textMuted, fontSize:13, lineHeight:22 },
+  bottomTabs:      { flexDirection:'row', backgroundColor: colors.white, borderTopWidth:1, borderTopColor: colors.border },
+  bottomTab:       { flex:1, paddingVertical:12, alignItems:'center' },
+  bottomTabText:   { fontSize:11, letterSpacing:1, color: colors.textMuted, textTransform:'uppercase' },
+  bottomTabActive: { color: colors.red, fontWeight:'600' },
 })

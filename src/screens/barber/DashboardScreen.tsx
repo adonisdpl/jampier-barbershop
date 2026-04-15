@@ -4,6 +4,7 @@ import {
   ActivityIndicator, TouchableOpacity, Alert
 } from 'react-native'
 import { supabase } from '../../lib/supabase'
+import { colors, spacing, radius } from '../../theme'
 
 interface Booking {
   id: string
@@ -22,10 +23,16 @@ const STATUS_LABEL: Record<string, string> = {
   done:      'Terminé',
 }
 const STATUS_COLOR: Record<string, string> = {
-  pending:   '#BA7517',
-  confirmed: '#1D9E75',
-  cancelled: '#e05252',
-  done:      '#555',
+  pending:   colors.warning,
+  confirmed: colors.success,
+  cancelled: colors.danger,
+  done:      colors.textMuted,
+}
+const STATUS_BG: Record<string, string> = {
+  pending:   colors.warningLight,
+  confirmed: colors.successLight,
+  cancelled: colors.dangerLight,
+  done:      colors.borderLight,
 }
 
 function BookingCard({ booking, onUpdate }: { booking: Booking; onUpdate: () => void }) {
@@ -33,8 +40,7 @@ function BookingCard({ booking, onUpdate }: { booking: Booking; onUpdate: () => 
 
   async function updateStatus(status: 'confirmed' | 'done' | 'cancelled') {
     setLoading(true)
-    const { error } = await supabase
-      .from('bookings').update({ status }).eq('id', booking.id)
+    const { error } = await supabase.from('bookings').update({ status }).eq('id', booking.id)
     if (error) Alert.alert('Erreur', error.message)
     else onUpdate()
     setLoading(false)
@@ -54,11 +60,9 @@ function BookingCard({ booking, onUpdate }: { booking: Booking; onUpdate: () => 
         <View>
           <Text style={s.slotTime}>{booking.slot_time.slice(0, 5)}</Text>
           <Text style={s.clientName}>{booking.client?.full_name ?? 'Client inconnu'}</Text>
-          {booking.client?.phone && (
-            <Text style={s.clientPhone}>{booking.client.phone}</Text>
-          )}
+          {booking.client?.phone && <Text style={s.clientPhone}>{booking.client.phone}</Text>}
         </View>
-        <View style={[s.badge, { backgroundColor: STATUS_COLOR[booking.status] + '22' }]}>
+        <View style={[s.badge, { backgroundColor: STATUS_BG[booking.status] }]}>
           <Text style={[s.badgeText, { color: STATUS_COLOR[booking.status] }]}>
             {STATUS_LABEL[booking.status]}
           </Text>
@@ -70,12 +74,10 @@ function BookingCard({ booking, onUpdate }: { booking: Booking; onUpdate: () => 
         <Text style={s.serviceDetail}>{booking.service.duration_min} min · {booking.service.price_chf} CHF</Text>
       </View>
 
-      {booking.note && (
-        <Text style={s.note}>📝 {booking.note}</Text>
-      )}
+      {booking.note && <Text style={s.note}>📝 {booking.note}</Text>}
 
       {loading ? (
-        <ActivityIndicator color="#c9a96e" style={{ marginTop: 12 }} />
+        <ActivityIndicator color={colors.red} style={{ marginTop: 12 }} />
       ) : (
         <View style={s.actions}>
           {booking.status === 'pending' && (
@@ -110,53 +112,41 @@ export default function DashboardScreen({ barberId }: { barberId: string }) {
   const [selDate, setSelDate]   = useState(new Date())
 
   const dateStr   = (d: Date) => d.toISOString().split('T')[0]
-  const dateLabel = (d: Date) => d.toLocaleDateString('fr-CH', {
-    weekday: 'long', day: 'numeric', month: 'long'
-  })
+  const dateLabel = (d: Date) => d.toLocaleDateString('fr-CH', { weekday:'long', day:'numeric', month:'long' })
 
   const fetchBookings = useCallback(async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from('bookings')
-      .select(`
-        id, date, slot_time, status, note,
+      .select(`id, date, slot_time, status, note,
         client:profiles(full_name, phone),
-        service:services(name, price_chf, duration_min)
-      `)
+        service:services(name, price_chf, duration_min)`)
       .eq('barber_id', barberId)
       .eq('date', dateStr(selDate))
       .neq('status', 'cancelled')
       .order('slot_time')
-
-    if (error) {
-      console.error('fetchBookings error:', error)
-    } else {
-      setBookings((data as any) ?? [])
-    }
+    if (!error) setBookings((data as any) ?? [])
     setLoading(false)
   }, [barberId, selDate])
 
   useEffect(() => { fetchBookings() }, [fetchBookings])
 
   useEffect(() => {
-    const channel = supabase
-      .channel(`dashboard:${barberId}`)
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'bookings',
-        filter: `barber_id=eq.${barberId}`,
-      }, () => fetchBookings())
+    const ch = supabase.channel(`dashboard:${barberId}`)
+      .on('postgres_changes', { event:'*', schema:'public', table:'bookings', filter:`barber_id=eq.${barberId}` }, fetchBookings)
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    return () => { supabase.removeChannel(ch) }
   }, [barberId, fetchBookings])
 
-  function prevDay() { const d = new Date(selDate); d.setDate(d.getDate() - 1); setSelDate(d) }
-  function nextDay() { const d = new Date(selDate); d.setDate(d.getDate() + 1); setSelDate(d) }
+  function prevDay() { const d = new Date(selDate); d.setDate(d.getDate()-1); setSelDate(d) }
+  function nextDay() { const d = new Date(selDate); d.setDate(d.getDate()+1); setSelDate(d) }
 
   const total     = bookings.reduce((sum, b) => sum + b.service.price_chf, 0)
   const confirmed = bookings.filter(b => b.status === 'confirmed' || b.status === 'done').length
 
   return (
     <View style={s.container}>
+      {/* Navigation jour */}
       <View style={s.dayNav}>
         <TouchableOpacity onPress={prevDay} style={s.dayNavBtn}>
           <Text style={s.dayNavArrow}>←</Text>
@@ -172,6 +162,7 @@ export default function DashboardScreen({ barberId }: { barberId: string }) {
         </TouchableOpacity>
       </View>
 
+      {/* Stats */}
       <View style={s.stats}>
         <View style={s.statItem}>
           <Text style={s.statValue}>{bookings.length}</Text>
@@ -189,18 +180,17 @@ export default function DashboardScreen({ barberId }: { barberId: string }) {
         </View>
       </View>
 
+      {/* Liste */}
       {loading ? (
-        <ActivityIndicator color="#c9a96e" style={{ marginTop: 40 }} />
+        <ActivityIndicator color={colors.red} style={{ marginTop: 40 }} />
       ) : bookings.length === 0 ? (
         <View style={s.empty}>
           <Text style={s.emptyIcon}>📅</Text>
           <Text style={s.emptyText}>Aucun rendez-vous ce jour</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-          {bookings.map(b => (
-            <BookingCard key={b.id} booking={b} onUpdate={fetchBookings} />
-          ))}
+        <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 40 }}>
+          {bookings.map(b => <BookingCard key={b.id} booking={b} onUpdate={fetchBookings} />)}
         </ScrollView>
       )}
     </View>
@@ -208,36 +198,36 @@ export default function DashboardScreen({ barberId }: { barberId: string }) {
 }
 
 const s = StyleSheet.create({
-  container:      { flex:1, backgroundColor:'#1a1a1a' },
-  dayNav:         { flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding:16, borderBottomWidth:1, borderBottomColor:'#222' },
-  dayNavBtn:      { padding:8 },
-  dayNavArrow:    { color:'#c9a96e', fontSize:20 },
-  dayLabel:       { color:'#fff', fontSize:15, textAlign:'center' },
-  todayBadge:     { color:'#c9a96e', fontSize:11, letterSpacing:1, textAlign:'center', marginTop:2 },
-  stats:          { flexDirection:'row', backgroundColor:'#222', margin:16, borderRadius:8, padding:16, borderWidth:1, borderColor:'#333' },
+  container:      { flex:1, backgroundColor: colors.cream },
+  dayNav:         { flexDirection:'row', alignItems:'center', justifyContent:'space-between', padding: spacing.md, borderBottomWidth:1, borderBottomColor: colors.border, backgroundColor: colors.white },
+  dayNavBtn:      { padding: spacing.sm },
+  dayNavArrow:    { color: colors.red, fontSize:20 },
+  dayLabel:       { color: colors.text, fontSize:15, textAlign:'center', fontWeight:'500' },
+  todayBadge:     { color: colors.red, fontSize:11, letterSpacing:1, textAlign:'center', marginTop:2 },
+  stats:          { flexDirection:'row', backgroundColor: colors.white, margin: spacing.md, borderRadius: radius.lg, padding: spacing.md, borderWidth:1, borderColor: colors.border },
   statItem:       { flex:1, alignItems:'center' },
-  statValue:      { color:'#c9a96e', fontSize:20, fontWeight:'500', marginBottom:4 },
-  statLabel:      { color:'#555', fontSize:11, letterSpacing:1 },
-  statDivider:    { width:1, backgroundColor:'#333', marginHorizontal:8 },
-  card:           { backgroundColor:'#222', borderWidth:1, borderColor:'#333', borderRadius:8, padding:16, marginBottom:12 },
-  cardHeader:     { flexDirection:'row', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 },
-  slotTime:       { color:'#c9a96e', fontSize:20, fontWeight:'500', marginBottom:2 },
-  clientName:     { color:'#fff', fontSize:15 },
-  clientPhone:    { color:'#555', fontSize:12, marginTop:2 },
-  badge:          { paddingVertical:4, paddingHorizontal:10, borderRadius:4 },
-  badgeText:      { fontSize:11, letterSpacing:1 },
-  serviceRow:     { flexDirection:'row', justifyContent:'space-between', marginBottom:8 },
-  serviceName:    { color:'#aaa', fontSize:13 },
-  serviceDetail:  { color:'#555', fontSize:13 },
-  note:           { color:'#666', fontSize:12, fontStyle:'italic', marginBottom:8 },
-  actions:        { flexDirection:'row', gap:8, marginTop:8 },
-  btnConfirm:     { flex:1, backgroundColor:'#1D9E75', padding:10, alignItems:'center', borderRadius:4 },
-  btnConfirmText: { color:'#fff', fontSize:12, letterSpacing:1 },
-  btnDone:        { flex:1, backgroundColor:'#333', padding:10, alignItems:'center', borderRadius:4 },
-  btnDoneText:    { color:'#c9a96e', fontSize:12, letterSpacing:1 },
-  btnCancel:      { flex:1, borderWidth:1, borderColor:'#e05252', padding:10, alignItems:'center', borderRadius:4 },
-  btnCancelText:  { color:'#e05252', fontSize:12, letterSpacing:1 },
-  empty:          { flex:1, alignItems:'center', justifyContent:'center', gap:12 },
+  statValue:      { color: colors.red, fontSize:20, fontWeight:'700', marginBottom:4 },
+  statLabel:      { color: colors.textMuted, fontSize:11, letterSpacing:1 },
+  statDivider:    { width:1, backgroundColor: colors.border, marginHorizontal: spacing.sm },
+  card:           { backgroundColor: colors.white, borderWidth:1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.sm },
+  cardHeader:     { flexDirection:'row', justifyContent:'space-between', alignItems:'flex-start', marginBottom: spacing.sm },
+  slotTime:       { color: colors.red, fontSize:22, fontWeight:'700', marginBottom:2 },
+  clientName:     { color: colors.text, fontSize:15, fontWeight:'500' },
+  clientPhone:    { color: colors.textMuted, fontSize:12, marginTop:2 },
+  badge:          { paddingVertical:4, paddingHorizontal:10, borderRadius: radius.sm },
+  badgeText:      { fontSize:11, letterSpacing:1, fontWeight:'500' },
+  serviceRow:     { flexDirection:'row', justifyContent:'space-between', marginBottom: spacing.sm },
+  serviceName:    { color: colors.textMuted, fontSize:13 },
+  serviceDetail:  { color: colors.textMuted, fontSize:13 },
+  note:           { color: colors.textMuted, fontSize:12, fontStyle:'italic', marginBottom: spacing.sm },
+  actions:        { flexDirection:'row', gap: spacing.sm, marginTop: spacing.sm },
+  btnConfirm:     { flex:1, backgroundColor: colors.success, padding:10, alignItems:'center', borderRadius: radius.md },
+  btnConfirmText: { color: colors.white, fontSize:12, letterSpacing:1, fontWeight:'500' },
+  btnDone:        { flex:1, backgroundColor: colors.goldLight, padding:10, alignItems:'center', borderRadius: radius.md },
+  btnDoneText:    { color: colors.goldDark, fontSize:12, letterSpacing:1, fontWeight:'500' },
+  btnCancel:      { flex:1, borderWidth:1.5, borderColor: colors.red, padding:10, alignItems:'center', borderRadius: radius.md },
+  btnCancelText:  { color: colors.red, fontSize:12, letterSpacing:1 },
+  empty:          { flex:1, alignItems:'center', justifyContent:'center', gap: spacing.md, marginTop: 60 },
   emptyIcon:      { fontSize:40 },
-  emptyText:      { color:'#555', fontSize:14, letterSpacing:1 },
+  emptyText:      { color: colors.textMuted, fontSize:14, letterSpacing:1 },
 })
